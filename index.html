@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<style>
+template {
+  display: none;
+}
+.code {
+  font-family: monospace;
+  font-size: 1.6rem;
+}
+.notifications {
+  max-width: 600px;
+}
+.notif {
+  border: 1px solid #ccc;
+  padding: 10px 20px;
+  min-height: 100px;
+  margin: 10px 0;
+  -webkit-border-radius: 20px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+.notif-icon {
+  width: 80px;
+  float: left;
+}
+.notif-icon ~ * {
+  margin-left: 90px;
+}
+.notif h3 {
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+.notif-time {
+  font-size: 0.8rem;
+  color: #666;
+}
+</style>
+</head>
+<body>
+  <h1>Desktop Notifications</h1>
+  
+  <form action="" id="codeform">
+    <p>Enter code on phone: <strong id="newcode" class="code"></strong></p>
+    <p>Or enter code from phone: <input type="text" id="phonecode" size="20" class="code"></p>
+    <p><button type="submit">Connect</button></p>
+  </form>
+  
+  <hr>
+  
+  <div class="notifications" id="notifications">
+    <template id="template">
+      <div class="notif">
+        <img src="" class="notif-icon">
+        <h3><span class="notif-title"></span> <small class="notif-time"></small></h3>
+        <p class="notif-text"></p>
+      </div>
+    </template>
+  </div>
+  
+<script type="text/javascript">
+'use strict';
+document.addEventListener('readystatechange', (e) => {
+  if (e.target.readyState !== 'interactive') return;
+  init();
+}, false);
+function _(id) {
+  return document.getElementById(id);
+}
+var code;
+var newcode, phonecode, codeform;
+
+function genCode() {
+  var chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = '';
+  for (var i = 0; i < 15; i++) {
+    code += chars[Math.floor(Math.random()*chars.length)];
+  }
+  return code;
+}
+
+function init () {
+  newcode = _('newcode');
+  phonecode = _('phonecode');
+  codeform = _('codeform');
+  
+  code = genCode();
+  newcode.innerText = code;
+  codeform.addEventListener('submit', (e) => {
+    e.preventDefault();
+    connect(phonecode.value != '' ? phonecode.value : code);
+    return false;
+  }, false);
+  
+}
+
+function connect(code) {
+  console.log('code: ' + code);
+  var evtSource = new EventSource('/v1/events/' + code);
+  
+  evtSource.onopen = (e) => {
+    console.log('open', e);
+  };
+  evtSource.addEventListener('notification', (e) => {
+    var notification = JSON.parse(e.data);
+    console.log(notification);
+    var el = document.createElement('div');
+    el.innerHTML = _('template').innerHTML;
+    el.getElementsByClassName('notif')[0].style['border-color'] = '#' + notification.color.substring(2);
+    el.getElementsByClassName('notif-title')[0].innerText = notification.title;
+    el.getElementsByClassName('notif-text')[0].innerText = notification.text.replace('\n', '<br>\n');
+    el.getElementsByClassName('notif-icon')[0].src = notification.appIcon;
+    el.getElementsByClassName('notif-icon')[0].title = notification.appLabel;
+    el.getElementsByClassName('notif-time')[0].innerText = timeDifference(parseInt(notification.postTime));
+    el.addEventListener('click', (e) => {
+      el.outerHTML = '';
+    });
+    _('notifications').appendChild(el);
+  });
+  evtSource.onerror = (e) => {
+    console.log('error', e);
+  };
+}
+
+function timeDifference(previous) {
+  var current = new Date().getTime();
+  
+  var msPerMinute = 60 * 1000;
+  var msPerHour = msPerMinute * 60;
+  var msPerDay = msPerHour * 24;
+  var msPerMonth = msPerDay * 30;
+  var msPerYear = msPerDay * 365;
+  
+  var elapsed = current - previous;
+  
+  if (elapsed < msPerMinute) {
+       return Math.round(elapsed/1000) + ' seconds ago';   
+  } else if (elapsed < msPerHour) {
+       return Math.round(elapsed/msPerMinute) + ' minutes ago';   
+  } else if (elapsed < msPerDay) {
+       return Math.round(elapsed/msPerHour) + ' hours ago';   
+  } else if (elapsed < msPerMonth) {
+      return Math.round(elapsed/msPerDay) + ' days ago';   
+  } else if (elapsed < msPerYear) {
+      return Math.round(elapsed/msPerMonth) + ' months ago';   
+  } else {
+      return Math.round(elapsed/msPerYear) + ' years ago';   
+  }
+}
+
+</script>
+</body>
+</html>
