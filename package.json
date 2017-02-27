@@ -4,13 +4,12 @@
   "description": "",
   "main": "dn.js",
   "dependencies": {
-    "JSONStream": "^1.3.0",
-    "jsonstream": "^1.0.3"
+    "JSONStream": "^1.3.0"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "MIT"
 }
