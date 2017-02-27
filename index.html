@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Desktop Notifications</title>
 <style>
 template {
   display: none;
@@ -41,11 +42,10 @@ template {
 </style>
 </head>
 <body>
-  <h1>Desktop Notifications</h1>
+  <h1><a href="desktop-notifications.apk">Desktop Notifications</a></h1>
   
   <form action="" id="codeform">
-    <p>Enter code on phone: <strong id="newcode" class="code"></strong></p>
-    <p>Or enter code from phone: <input type="text" id="phonecode" size="20" class="code"></p>
+    <p>Code to connect with phone: <input type="text" id="code" size="20" class="code"></p>
     <p><button type="submit">Connect</button></p>
   </form>
   
@@ -70,8 +70,8 @@ document.addEventListener('readystatechange', (e) => {
 function _(id) {
   return document.getElementById(id);
 }
-var code;
-var newcode, phonecode, codeform;
+var code = null;
+var codeinput, codeform;
 
 function genCode() {
   var chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -83,15 +83,23 @@ function genCode() {
 }
 
 function init () {
-  newcode = _('newcode');
-  phonecode = _('phonecode');
+  codeinput = _('code');
   codeform = _('codeform');
   
-  code = genCode();
-  newcode.innerText = code;
+  try {
+    code = localStorage.getItem('code');
+  } catch (e) {
+    console.log('could not get code from localStorage', e);
+  } finally {
+    if (code == null) {
+      code = genCode();
+    }
+  }
+  
+  codeinput.value = code;
   codeform.addEventListener('submit', (e) => {
     e.preventDefault();
-    connect(phonecode.value != '' ? phonecode.value : code);
+    connect(codeinput.value);
     return false;
   }, false);
   
@@ -99,7 +107,14 @@ function init () {
 
 function connect(code) {
   console.log('code: ' + code);
-  var evtSource = new EventSource('/v1/events/' + code);
+  
+  try {
+    localStorage.setItem('code', code);
+  } catch (e) {
+    console.log('could not store code in localStorage', e);
+  }
+  
+  var evtSource = new EventSource('v1/events/' + code);
   
   evtSource.onopen = (e) => {
     console.log('open', e);
@@ -109,9 +124,13 @@ function connect(code) {
     console.log(notification);
     var el = document.createElement('div');
     el.innerHTML = _('template').innerHTML;
-    el.getElementsByClassName('notif')[0].style['border-color'] = '#' + notification.color.substring(2);
+    if (notification.color.length == 8) { // AARRGGBB
+      el.getElementsByClassName('notif')[0].style['border-color'] = '#' + notification.color.substring(2);
+    }
     el.getElementsByClassName('notif-title')[0].innerText = notification.title;
-    el.getElementsByClassName('notif-text')[0].innerText = notification.text.replace('\n', '<br>\n');
+    var text = el.getElementsByClassName('notif-text')[0];
+    text.innerText = notification.text;
+    text.innerHTML = text.innerText.replace('\n', '<br>\n');
     el.getElementsByClassName('notif-icon')[0].src = notification.appIcon;
     el.getElementsByClassName('notif-icon')[0].title = notification.appLabel;
     el.getElementsByClassName('notif-time')[0].innerText = timeDifference(parseInt(notification.postTime));
@@ -119,6 +138,7 @@ function connect(code) {
       el.outerHTML = '';
     });
     _('notifications').appendChild(el);
+    notify(notification);
   });
   evtSource.onerror = (e) => {
     console.log('error', e);
@@ -148,6 +168,27 @@ function timeDifference(previous) {
       return Math.round(elapsed/msPerMonth) + ' months ago';   
   } else {
       return Math.round(elapsed/msPerYear) + ' years ago';   
+  }
+}
+
+function notify(notif) {
+  function n() {
+    var n = new Notification(notif.title, {
+      body: notif.text,
+      icon: notif.appIcon,
+      timestamp: notif.postTime
+    });
+  }
+  if (!("Notification" in window)) {
+    console.log('no notification support :(');
+  } else if (Notification.permission === "granted") {
+    n();
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission(function (permission) {
+      if (permission === "granted") {
+        n();
+      }
+    });
   }
 }
 

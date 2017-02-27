@@ -55,6 +55,14 @@ var handle = (req, res, method, path, query, json) => {
         if (err) throw err;
         res.end(data);
     });
+  } else if (method == 'GET' && path == '/desktop-notifications.apk') {
+    res.writeHead(200, {
+        'Content-Type': 'application/vnd.android.package-archive'
+    });
+    fs.readFile('desktop-notifications.apk', (err, data) => {
+        if (err) throw err;
+        res.end(data);
+    });
   } else if (method == 'GET' && path.startsWith('/v1/events/')) {
     var code = path.substring('/v1/events/'.length);
     res.writeHead(200, {'Content-Type': 'text/event-stream'});
